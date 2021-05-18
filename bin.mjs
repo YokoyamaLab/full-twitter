@@ -5,6 +5,7 @@ const program = new Command();
 program
     .name("node bin.mjs")
     .option('-q, --query <path>', 'クエリJSONファイル','./query.json')
+    .option('-i, --input <path>','Twiiterアーカイブディレクトリ名','/data/local/twitter')
     .option('-o, --output <path>', '結果出力ディレクトリ名','result')
     .option('-m, --outputMaxLines <integer>', '結果ファイル一つ当たりの行数', 1000000)
     .option('-p, --n-parallel <integer>', '並列実行スレッド数', 45)
