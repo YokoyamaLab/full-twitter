@@ -1,0 +1,9 @@
+[
+    {
+        "addon": "keyword-search",
+        "option": {
+            "keyword": ["Zoom飲み",["家飲み","宅飲み"],"飲み会","合コン","二次会","緊急事態宣言","休業要請"]
+        },
+        "filter": ["ignore-retweet"]
+    }
+]
