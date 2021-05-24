@@ -1,25 +1,25 @@
 import { workerData, parentPort } from 'worker_threads'
 import fs from 'fs';
-import path from 'path';
 import readline from 'readline'
 import async from "async";
-import clone from "rfdc/default";
 import * as TimSort from 'timsort';
+import { Console } from 'console';
+const console2 = new Console(process.stderr);
 
 const tweetFile = workerData.tweetFile;
 const sortedTweetFile = workerData.tweetFile + ".sorted";
 const config = workerData.config;
 
 const rs = fs.createReadStream(tweetFile);
-//console.error(tweetFile);
+//console2.log(tweetFile);
 let tweets = [];
 const rl = readline.createInterface({ input: rs });
 for await (const line of rl) {
     try {
         tweets.push(JSON.parse(line));
     } catch (e) {
-        console.error("JSON Parse ERROR at sort.mjs");
-        console.error(line);
+        console2.error("JSON Parse ERROR at sort.mjs");
+        console2.error(line);
         continue;
     }
 }
@@ -35,9 +35,9 @@ if (tweets.length > 0) {
         });
         sortedTweetHandle.close();
     } catch (e) {
-        //console.error("[SKIP]", sortedTweetFile);
-        console.error(e);
+        console2.error("SORT [SKIP]", sortedTweetFile);
+        console2.error(e);
     }
 } else {
-    //console.error("[zero]", sortedTweetFile);
+    console2.error("SORT [ZERO]", sortedTweetFile);
 }

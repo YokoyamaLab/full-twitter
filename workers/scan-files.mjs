@@ -17,6 +17,10 @@ const addons = workerData.addons;
 
 try {
     //console2.log("[" + threadId + "]", "Start worker");
+    const isTrash = await async.mapValues(workerData.filters, async (file) => {
+        const { isTrash } = await import(file);
+        return isTrash;
+    });
     let redumeMemoDefault = {};
     const commands = await async.map(config.query, async (q) => {
         const { map, reduce, reduceMemo, tweetMask } = await import(addons[q.addon]);
@@ -24,12 +28,12 @@ try {
         return {
             map: map,
             reduce: reduce,
-            tweetMask: tweetMask,
+            tweetMask: q.hasOwnProperty("mask") ? q.mask : tweetMask,
+            filters: q.hasOwnProperty("filters") ? q.filters : null,
             addon: q.addon,
             option: q.option
         };
     });
-
     await async.each(files, async (file) => {
         const subdir = path.dirname(file).split(path.sep).pop();
         const filename = path.basename(file, '.lz4');
@@ -70,7 +74,19 @@ try {
                 const ts = DateTime.fromMillis(parseInt(tweet.timestamp_ms));
                 const tFrom = DateTime.fromMillis(config.from);
                 const tTo = DateTime.fromMillis(config.to);
-                if (tFrom <= ts && ts < tTo) {
+                if (tFrom <= ts && ts < tTo) {                    
+                    if (command.hasOwnProperty("filters") && command.filters != null) {                       
+                        const filters = Array.isArray(command.filters) ? command.filters : [command.filters];
+                        
+                        if (await async.detect(
+                            filters,
+                            async (filter) => {
+                                return isTrash[filter](tweet);
+                            }
+                        )) {
+                            return null;
+                        }
+                    }
                     const { message, record } = await command.map(tweet, command.option, config);
                     await async.each(Array.isArray(message) ? message : [message], async (msg) => {
                         reduceMemo[command.addon] = await command.reduce(reduceMemo[command.addon], msg, config);
@@ -79,7 +95,6 @@ try {
                     if (record === false) {
                         return null;
                     }
-                    const maskedJson = jsonMask(tweet, command.tweetMask);
                     nHit++;
                     if (record !== true) {
                         maskedJson[command.addon] = record;

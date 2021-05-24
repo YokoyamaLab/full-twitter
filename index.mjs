@@ -12,6 +12,7 @@ const config_default = {
     input: '/data/local/twitter',
     output: './result',
     addons: './addons',
+    filters: './filters',
     nParallel: 40,
     nConcurrence: 4,
     nParallelDirScan: 11,
@@ -42,15 +43,17 @@ export async function FullTwitter(config_override) {
         var timeStart = DateTime.now();
         console2.time("STEPS");
         const config = await buildConfig(config_override);
-        const { _scanAddon, _scanDirectory } = await async.parallel({
+        const { _scanAddon, _scanFilter, _scanDirectory } = await async.parallel({
             _scanAddon: async () => await scanAddon(config),
+            _scanFilter: async () => await scanFilter(config),
             _scanDirectory: async () => await scanDirectory(config)
         });
         const { addonFiles } = _scanAddon;
+        const filterFiles = _scanFilter;
         const { files } = _scanDirectory;
         const { targetFiles, resumeHandle } = await resume(config, files);
         const fileChunks = await fileChunker(config, targetFiles);
-        await startWorker(config, addonFiles, fileChunks, resumeHandle);
+        await startWorker(config, addonFiles, filterFiles, fileChunks, resumeHandle);
         resumeHandle.close();
 
         console2.log("[SCAN DONE]");
@@ -91,7 +94,7 @@ async function finalize(config, timeStart, timeEnd) {
     }
     const speedFile = await fs.promises.open(path.join(config.output, '_tweets-per-sec.stats'), 'w');
     for (let ts = tsMin; ts <= tsMax; ts++) {
-        let procTweets = await async.reduce(stats, 0, (memo, stat) => {
+        let procTweets = await async.reduce(stats, 0, async (memo, stat) => {
             if (stat.tsStart < ts && ts <= stat.tsEnd) {
                 memo += stat.nTweet / (stat.tsEnd - stat.tsStart);
             }
@@ -261,21 +264,43 @@ async function buildConfig(config_override) {
     config.input = path.resolve(config.input);
     config.output = path.resolve(config.output);
     config.addons = path.resolve(config.addons);
+    config.filters = path.resolve(config.filters);
     config.resume = path.resolve(path.join(config.output, config.resume));
-    const tFrom = DateTime.fromISO(config.dayFrom);
-    const tTo = DateTime.fromISO(config.dayTo);
+    let tFrom = DateTime.fromISO(config.dayFrom);
+    let tTo = DateTime.fromISO(config.dayTo);
     if (config.dayTo.split('T').length == 1) {
-        tTo.plus({ days: 1 });
+        tTo = tTo.plus({ days: 1 });
     }
     config.from = tFrom.toMillis();
     config.to = tTo.toMillis();
     config.dayFrom = tFrom.setZone("utc").toISO();
     config.dayTo = tTo.setZone("utc").toISO();
     console2.table(config);
-    config.query = JSON.parse(await fs.promises.readFile(config.query));
+    const configStr = await fs.promises.readFile(config.query)
+    config.query = JSON.parse(configStr);
+    console2.log(configStr.toString());
     return config;
 }
 
+async function scanFilter(config) {
+    let filters = {};
+    await async.each(
+        await fs.promises.readdir(config.filters, { withFileTypes: true }),
+        async (dirent) => {
+            try {
+                const filterFile = path.resolve(path.join(config.filters, dirent.name));
+                const { filterName } = await import(filterFile);
+                console2.log("[init] Load Filters:", filterName, filterFile);
+                filters[filterName] = filterFile;
+            } catch (e) {
+                console2.error("Filter Load ERROR:", dirent.name);
+                console2.error(e);
+            };
+            return null;
+        }
+    );
+    return filters;
+}
 async function scanAddon(config) {
     let addons = await async.reduce(
         await fs.promises.readdir(config.addons, { withFileTypes: true }),
@@ -396,18 +421,18 @@ async function resume(config, all_files) {
     }
 }
 
-async function startWorker(config, addonFiles, fileChunks, resumeHandle) {
+async function startWorker(config, addonFiles, filterFiles, fileChunks, resumeHandle) {
     console2.log("[start]:", config.nParallel, "parallel");
     await async.eachLimit(fileChunks, config.nParallel, async (fileChunk) => {
         return new Promise((resolve, reject) => {
-            const worker = new Worker(workers.scanFiles, { workerData: { 'files': fileChunk, 'config': config, 'addons': addonFiles } });
+            const worker = new Worker(workers.scanFiles, { workerData: { 'files': fileChunk, 'config': config, 'addons': addonFiles, 'filters': filterFiles } });
             worker.on('message', async (message) => {
                 switch (message.type) {
                     case 'message':
                         break;
                     case 'done':
                         const filename = path.basename(message.file, '.lz4');
-                        console2.log("[done]", filename, Math.round(100000 * message.nTweet / (message.tEnd - message.tStart)) / 100, "tps", message.nHit, "hits");
+                        //console2.log("[done]", filename, Math.round(100000 * message.nTweet / (message.tEnd - message.tStart)) / 100, "tps", message.nHit, "hits");
                         await resumeHandle.write(filename + "\t" + message.nHit + "\t" + message.nTweet + "\t" + message.tStart + '\t' + message.tEnd + '\n');
                         stats.tweets += message.nTweet;
                         stats.hits += message.nHit

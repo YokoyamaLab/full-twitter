@@ -1,0 +1,10 @@
+[
+    {
+        "addon": "keyword-search",
+        "option": {
+            "keyword": ["ありがとう"]
+        },
+        "mask":"id_str,text,timestamp_ms,created_at",
+        "filters": ["ignore-retweet"]
+    }
+]
