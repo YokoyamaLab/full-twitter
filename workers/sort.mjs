@@ -34,10 +34,18 @@ if (tweets.length > 0) {
             return null;
         });
         sortedTweetHandle.close();
+        rs.close();
+        if (!config.verbose) {
+            fs.promises.unlink(tweetFile);
+        }
     } catch (e) {
         console2.error("SORT [SKIP]", sortedTweetFile);
         console2.error(e);
     }
 } else {
-    console2.error("SORT [ZERO]", sortedTweetFile);
+    //console.error("[zero]", sortedTweetFile);
+    rs.close();
+    if (!config.verbose) {
+        fs.promises.unlink(tweetFile);
+    }
 }

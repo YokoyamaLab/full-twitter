@@ -76,12 +76,14 @@ export async function FullTwitter(config_override) {
     }
 }
 async function finalize(config, timeStart, timeEnd) {
+    console.error("finalize",1);
     const resumeFile = path.join(config.output, ".resume");
     const rs = fs.createReadStream(resumeFile);
     const rl = readline.createInterface({ input: rs });
     let tsMax = 0;
     let tsMin = Number.MAX_VALUE;
     let stats = [];
+    console.error("finalize",2);
     for await (const line of rl) {
         let [file, nHit, nTweet, tStart, tEnd] = line.split("\t");
         nHit = parseInt(nHit);
@@ -92,7 +94,9 @@ async function finalize(config, timeStart, timeEnd) {
         tsMin = Math.min(tStart, tsMin)
         stats.push({ file, nTweet, tsStart, tsEnd });
     }
+    console.error("finalize",3);
     const speedFile = await fs.promises.open(path.join(config.output, '_tweets-per-sec.stats'), 'w');
+    console.error("finalize",4);
     for (let ts = tsMin; ts <= tsMax; ts++) {
         let procTweets = await async.reduce(stats, 0, async (memo, stat) => {
             if (stat.tsStart < ts && ts <= stat.tsEnd) {
@@ -102,16 +106,20 @@ async function finalize(config, timeStart, timeEnd) {
         });
         await speedFile.write(ts + "\t" + procTweets + "\n");
     }
+    console.error("finalize",5);
     await speedFile.close();
+    console.error("finalize",6);
     await fs.promises.writeFile(path.join(config.output, "_processing-time.stats"), JSON.stringify({
         "time in miliseconds": timeEnd.diff(timeStart),
         "time": timeEnd.diff(timeStart).toFormat("d Days hh Hours mm Minutes ss.S Seconds")
     }, null, "\t"));
+    console.error("finalize",7);
     if (!config.verbose) {
         await fs.promises.rm(path.join(config.output, "reduce"), { recursive: true, force: true });
         await fs.promises.rm(path.join(config.output, "tweet"), { recursive: true, force: true });
         await fs.promises.unlink(path.join(config.output, ".resume"));
     }
+    console.error("finalize",8);
 }
 
 async function concatenateTweet(config) {

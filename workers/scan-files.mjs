@@ -37,7 +37,7 @@ try {
     await async.each(files, async (file) => {
         const subdir = path.dirname(file).split(path.sep).pop();
         const filename = path.basename(file, '.lz4');
-        //console2.log("[start]", filename);
+        //console.log("[load]", filename);
         let reduceFile = {};
         let reduceMemo = {};
         let tweetFile = {};

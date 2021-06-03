@@ -125,6 +125,12 @@ export async function map(tweet, option, config) {
         const keywords = Array.isArray(keyword) ? keyword : [keyword];
         const keykeyword = keywords[0];
         if (await async.detect(keywords, async (keyword) => {
+            if ((option.hasOwnProperty("retweeted") && option.retweeted === true && tweet.retweeted === false)) {
+                return false;
+            }
+            if ((option.hasOwnProperty("in_reply") && option.in_reply !== true && tweet.in_reply_to_status_id === null)) {
+                return false;
+            }
             return tweet.text.toUpperCase().indexOf(keyword.toUpperCase()) > -1;
         })) {
             const ts = DateTime.fromMillis(parseInt(tweet.timestamp_ms));
