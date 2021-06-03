@@ -19,11 +19,18 @@ const files = await async.map(await async.filter(
     return path.resolve(path.join(targetDirectory, dirent.name))
 });
 
+let doneReduceFiles = [];
 const reduced = await async.reduce(files, clone(reduceMemo), async (memo, file) => {
     const source = await fs.promises.readFile(file);
-    if(source.toString().trim()==""){
+    doneReduceFiles.push(file);
+    if (source.toString().trim() == "") {
         return memo;
     }
     return aggregate(memo, JSON.parse(source));
 });
-await fs.promises.writeFile(path.join(targetDirectory,".reduce"), JSON.stringify(reduced, null, "\t"));
+await fs.promises.writeFile(path.join(targetDirectory, ".reduce"), JSON.stringify(reduced, null, "\t"));
+if (!config.verbose) {
+    await async.each(doneReduceFiles,async(file)=>{
+        await fs.promises.unlink(file);
+    });
+}
