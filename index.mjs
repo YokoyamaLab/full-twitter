@@ -76,50 +76,52 @@ export async function FullTwitter(config_override) {
     }
 }
 async function finalize(config, timeStart, timeEnd) {
-    console.error("finalize",1);
+    console.error("finalize", 1);
     const resumeFile = path.join(config.output, ".resume");
     const rs = fs.createReadStream(resumeFile);
     const rl = readline.createInterface({ input: rs });
     let tsMax = 0;
     let tsMin = Number.MAX_VALUE;
-    let stats = [];
-    console.error("finalize",2);
-    for await (const line of rl) {
-        let [file, nHit, nTweet, tStart, tEnd] = line.split("\t");
-        nHit = parseInt(nHit);
-        nTweet = parseInt(nTweet);
-        const tsStart = Math.floor(parseInt(tStart) / 1000);
-        const tsEnd = Math.floor(parseInt(tEnd));
-        tsMax = Math.max(tEnd, tsMax);
-        tsMin = Math.min(tStart, tsMin)
-        stats.push({ file, nTweet, tsStart, tsEnd });
+    if (config.verbose) {
+        let stats = [];
+        console.error("finalize", 2);
+        for await (const line of rl) {
+            let [file, nHit, nTweet, tStart, tEnd] = line.split("\t");
+            nHit = parseInt(nHit);
+            nTweet = parseInt(nTweet);
+            const tsStart = Math.floor(parseInt(tStart) / 1000);
+            const tsEnd = Math.floor(parseInt(tEnd));
+            tsMax = Math.max(tEnd, tsMax);
+            tsMin = Math.min(tStart, tsMin)
+            stats.push({ file, nTweet, tsStart, tsEnd });
+        }
+        console.error("finalize", 3);
+        const speedFile = await fs.promises.open(path.join(config.output, '_tweets-per-sec.stats'), 'w');
+        console.error("finalize", 4);
+        for (let ts = tsMin; ts <= tsMax; ts = (ts + 1000 > tsMax) ? tsMax : ts + 1000) {
+            let procTweets = await async.reduce(stats, 0, async (memo, stat) => {
+                if (stat.tsStart < ts && ts <= stat.tsEnd) {
+                    memo += stat.nTweet / (stat.tsEnd - stat.tsStart);
+                }
+                return memo;
+            });
+            await speedFile.write(ts + "\t" + procTweets + "\n");
+        }
+        console.error("finalize", 5);
+        await speedFile.close();
     }
-    console.error("finalize",3);
-    const speedFile = await fs.promises.open(path.join(config.output, '_tweets-per-sec.stats'), 'w');
-    console.error("finalize",4);
-    for (let ts = tsMin; ts <= tsMax; ts++) {
-        let procTweets = await async.reduce(stats, 0, async (memo, stat) => {
-            if (stat.tsStart < ts && ts <= stat.tsEnd) {
-                memo += stat.nTweet / (stat.tsEnd - stat.tsStart);
-            }
-            return memo;
-        });
-        await speedFile.write(ts + "\t" + procTweets + "\n");
-    }
-    console.error("finalize",5);
-    await speedFile.close();
-    console.error("finalize",6);
+    console.error("finalize", 6);
     await fs.promises.writeFile(path.join(config.output, "_processing-time.stats"), JSON.stringify({
         "time in miliseconds": timeEnd.diff(timeStart),
         "time": timeEnd.diff(timeStart).toFormat("d Days hh Hours mm Minutes ss.S Seconds")
     }, null, "\t"));
-    console.error("finalize",7);
+    console.error("finalize", 7);
     if (!config.verbose) {
         await fs.promises.rm(path.join(config.output, "reduce"), { recursive: true, force: true });
         await fs.promises.rm(path.join(config.output, "tweet"), { recursive: true, force: true });
         await fs.promises.unlink(path.join(config.output, ".resume"));
     }
-    console.error("finalize",8);
+    console.error("finalize", 8);
 }
 
 async function concatenateTweet(config) {
@@ -341,10 +343,11 @@ async function scanDirectory(config) {
         [],
         async (memo, dirent) => {
             if ((dirent.isDirectory() || dirent.isSymbolicLink()) && dirent.name.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                const ts_min = DateTime.fromISO(dirent.name + "T00:00:00");
-                const ts_max = DateTime.fromISO(dirent.name + "T23:59:59");
+                const ts_min = DateTime.fromISO(dirent.name + "T00:00:00Z");
+                const ts_max = DateTime.fromISO(dirent.name + "T23:59:59Z");
+                //console.log( (config.from <= ts_max.toMillis() && ts_min.toMillis() <= config.to),config.from,ts_min.toMillis(), ts_max.toMillis(),config.to);
                 if (config.from <= ts_max.toMillis() && ts_min.toMillis() <= config.to) {
-                    //console2.log("[watch]", dirent.name);
+                    //console.log("[watch]", dirent.name);
                     memo.push(path.join(config.input, dirent.name));
                 }
             }
@@ -440,7 +443,7 @@ async function startWorker(config, addonFiles, filterFiles, fileChunks, resumeHa
                         break;
                     case 'done':
                         const filename = path.basename(message.file, '.lz4');
-                        //console2.log("[done]", filename, Math.round(100000 * message.nTweet / (message.tEnd - message.tStart)) / 100, "tps", message.nHit, "hits");
+                        console2.log("[done]", filename, Math.round(100000 * message.nTweet / (message.tEnd - message.tStart)) / 100, "tps", message.nHit, "hits");
                         await resumeHandle.write(filename + "\t" + message.nHit + "\t" + message.nTweet + "\t" + message.tStart + '\t' + message.tEnd + '\n');
                         stats.tweets += message.nTweet;
                         stats.hits += message.nHit
