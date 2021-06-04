@@ -21,10 +21,10 @@ try {
         const { isTrash } = await import(file);
         return isTrash;
     });
-    let redumeMemoDefault = {};
+    let reduceMemoDefault = {};
     const commands = await async.map(config.query, async (q) => {
         const { map, reduce, reduceMemo, tweetMask } = await import(addons[q.addon]);
-        redumeMemoDefault[q.addon] = clone(reduceMemo);
+        reduceMemoDefault[q.addon] = clone(reduceMemo);
         return {
             map: map,
             reduce: reduce,
@@ -44,7 +44,7 @@ try {
         await async.eachOf(addons, async (addon, addonName) => {
             reduceFile[addonName] = path.join(config.output, "reduce", addonName, subdir, filename + ".reduce");
             tweetFile[addonName] = path.join(config.output, "tweet", addonName, subdir, filename + ".tweet");
-            reduceMemo[addonName] = clone(redumeMemoDefault[addonName]);
+            reduceMemo[addonName] = clone(reduceMemoDefault[addonName]);
             //console2.log("[OUTPUT FILE]", config.output, "tweet", addonName, subdir, filename + ".tweet");
             try {
                 await fs.promises.mkdir(path.join(config.output, "reduce", addonName, subdir), { recursive: true });
@@ -74,10 +74,9 @@ try {
                 const ts = DateTime.fromMillis(parseInt(tweet.timestamp_ms));
                 const tFrom = DateTime.fromMillis(config.from);
                 const tTo = DateTime.fromMillis(config.to);
-                if (tFrom <= ts && ts < tTo) {                    
-                    if (command.hasOwnProperty("filters") && command.filters != null) {                       
+                if (tFrom <= ts && ts < tTo) {
+                    if (command.hasOwnProperty("filters") && command.filters != null) {
                         const filters = Array.isArray(command.filters) ? command.filters : [command.filters];
-                        
                         if (await async.detect(
                             filters,
                             async (filter) => {
@@ -96,11 +95,12 @@ try {
                         return null;
                     }
                     nHit++;
+                    let maskedJson = jsonMask(tweet, command.tweetMask);
                     if (record !== true) {
                         maskedJson[command.addon] = record;
                     }
+                    //console2.log(JSON.stringify(record, null, "\t"));
                     await tweetFile[command.addon].write(JSON.stringify(maskedJson) + "\n");
-
                 }
                 return null;
             });

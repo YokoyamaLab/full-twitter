@@ -4,7 +4,7 @@
         "option": {
             "keyword": ["ありがとう"]
         },
-        "mask":"id_str,text,timestamp_ms,created_at",
-        "filters": ["ignore-retweet"]
+        "mask":"id_str,text,user(id_str,name,screen_name,followers_count,friends_count),retweet_count,favorite_count,in_reply_to_user_id_str,in_reply_to_status_id_str,timestamp_ms,created_at",
+        "filters": ["only-reply","ignore-retweet"]
     }
 ]
