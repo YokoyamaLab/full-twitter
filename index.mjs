@@ -23,6 +23,7 @@ const config_default = {
     verbose: false,
     dayFrom: '2020-04-01',
     dayTo: '2021-03-31',
+    hourWindow: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
 };
 
 const workers = {
@@ -271,6 +272,9 @@ async function buildConfig(config_override) {
             config[key] = config_default[key];
         }
     });
+    if (typeof config.hourWindow === 'string') {
+        config.hourWindow = JSON.parse(config.hourWindow);
+    }
     config.input = path.resolve(config.input);
     config.output = path.resolve(config.output);
     config.addons = path.resolve(config.addons);
@@ -285,10 +289,35 @@ async function buildConfig(config_override) {
     config.to = tTo.toMillis();
     config.dayFrom = tFrom.setZone("utc").toISO();
     config.dayTo = tTo.setZone("utc").toISO();
-    console2.table(config);
+    const tzOffset = Math.floor(DateTime.now().offset / 60);
+    const tzHalfMin = DateTime.now().offset % 60 > 0;
+    config.hourWindow.sort();
+    let prevH = null;
+    let hWindow = [];
+    config.hourWindow.forEach((hh) => {
+        let h = hh - tzOffset;
+        if (tzHalfMin && prevH != null && prevH + 1 != h) {
+            hWindow.push(prevH + 1);
+        }
+        hWindow.push(h);
+        prevH = h;
+    });
+    config.hourWindow = await async.map([...new Set(hWindow)],
+        async (h) => {
+            if (h < 0) {
+                h += 24;
+            } else if (h >= 24) {
+                h -= 24;
+            }
+            return h;
+        });
+    config.hourWindow.sort();
+    console2.table(await async.mapValuesSeries(config, async (val, key) => {
+        return Array.isArray(val) ? JSON.stringify(val) : val;
+    }));
     const configStr = await fs.promises.readFile(config.query)
     config.query = JSON.parse(configStr);
-    console2.log(configStr.toString());
+    //console2.log(configStr.toString());
     return config;
 }
 
@@ -366,7 +395,7 @@ async function scanDirectory(config) {
     let files = [];
     await async.eachOfLimit(directoryChunks, config.nParallelDirScan, async (directoryChunk) => {
         return new Promise((resolve, reject) => {
-            const worker = new Worker(workers.listFiles, { workerData: { 'directoryChunk': directoryChunk } });
+            const worker = new Worker(workers.listFiles, { workerData: { 'directoryChunk': directoryChunk, 'config': config } });
             worker.on('message', (message) => {
                 files = files.concat(message);
                 nFile += message.length;
