@@ -14,7 +14,8 @@ program
     .option('-r, --resume <path>', 'レジューム用作業記録ファイル', '.resume')
     .option('-v, --verbose','途中作成ファイルを全て残す')
     .option('-f, --day-from <yyyy-mm-dd>', '処理対象期間(開始)ISO8601形式', '2020-04-01T00:00:00')
-    .option('-t, --day-to <yyyy-mm-dd>', '処理対象期間(終了)ISO8601形式', '2021-03-31T23:59:59');
+    .option('-t, --day-to <yyyy-mm-dd>', '処理対象期間(終了)ISO8601形式', '2021-03-31T23:59:59')
+    .option('-h, --hour-window <[h,h,...]>', '収集対象時間帯');
 
 program.parse(process.argv);
 let config = program.opts();
