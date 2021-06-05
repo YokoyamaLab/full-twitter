@@ -1,10 +1,11 @@
 {
   "name": "full-twitter",
-  "version": "1.1.0",
-  "description": "",
-  "main": "",
-  "scripts": {
-    "test": "node bin.mjs"
+  "version": "1.5.1",
+  "description": "Full Twitter Scan",
+  "main": "./index.mjs",
+  "bin": {
+    "full-twitter": "./bin.mjs",
+    "usage": "./bin.mjs -?"
   },
   "author": "Shohei Yokoyama",
   "license": "MIT",
