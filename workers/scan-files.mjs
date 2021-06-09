@@ -70,37 +70,43 @@ try {
                 if (line.trim() == "") {
                     return null;
                 }
-                const tweet = JSON.parse(line);
-                const ts = DateTime.fromMillis(parseInt(tweet.timestamp_ms));
-                const tFrom = DateTime.fromMillis(config.from);
-                const tTo = DateTime.fromMillis(config.to);
-                if (tFrom <= ts && ts < tTo) {
-                    if (command.hasOwnProperty("filters") && command.filters != null) {
-                        const filters = Array.isArray(command.filters) ? command.filters : [command.filters];
-                        if (await async.detect(
-                            filters,
-                            async (filter) => {
-                                return isTrash[filter](tweet);
+                try {
+                    const tweet = JSON.parse(line);
+                    const ts = DateTime.fromMillis(parseInt(tweet.timestamp_ms));
+                    const tFrom = DateTime.fromMillis(config.from);
+                    const tTo = DateTime.fromMillis(config.to);
+                    if (tFrom <= ts && ts < tTo) {
+                        if (command.hasOwnProperty("filters") && command.filters != null) {
+                            const filters = Array.isArray(command.filters) ? command.filters : [command.filters];
+                            if (await async.detect(
+                                filters,
+                                async (filter) => {
+                                    return isTrash[filter](tweet);
+                                }
+                            )) {
+                                return null;
                             }
-                        )) {
+                        }
+                        const { message, record } = await command.map(tweet, command.option, config);
+                        await async.each(Array.isArray(message) ? message : [message], async (msg) => {
+                            reduceMemo[command.addon] = await command.reduce(reduceMemo[command.addon], msg, config);
+                            return null;
+                        });
+                        if (record === false) {
                             return null;
                         }
+                        nHit++;
+                        let maskedJson = jsonMask(tweet, command.tweetMask);
+                        if (record !== true) {
+                            maskedJson[command.addon] = record;
+                        }
+                        //console2.log(JSON.stringify(record, null, "\t"));
+                        await tweetFile[command.addon].write(JSON.stringify(maskedJson) + "\n");
                     }
-                    const { message, record } = await command.map(tweet, command.option, config);
-                    await async.each(Array.isArray(message) ? message : [message], async (msg) => {
-                        reduceMemo[command.addon] = await command.reduce(reduceMemo[command.addon], msg, config);
-                        return null;
-                    });
-                    if (record === false) {
-                        return null;
-                    }
-                    nHit++;
-                    let maskedJson = jsonMask(tweet, command.tweetMask);
-                    if (record !== true) {
-                        maskedJson[command.addon] = record;
-                    }
-                    //console2.log(JSON.stringify(record, null, "\t"));
-                    await tweetFile[command.addon].write(JSON.stringify(maskedJson) + "\n");
+                } catch (e) {
+                    console2.error("[JSON PARSER ERROR] ", filename);
+                    console2.error(line);
+                    console2.error("[Skip this tweet and Go!]");
                 }
                 return null;
             });

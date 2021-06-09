@@ -25,7 +25,7 @@ for await (const line of rl) {
 }
 if (tweets.length > 0) {
     try {
-        const sortedTweetHandle = await fs.promises.open(sortedTweetFile, "wx");
+        const sortedTweetHandle = await fs.promises.open(sortedTweetFile, "w");
         TimSort.sort(tweets, (a, b) => {
             return a["timestamp_ms"] - b["timestamp_ms"];
         });

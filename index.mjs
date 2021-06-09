@@ -56,7 +56,6 @@ export async function FullTwitter(config_override) {
         const fileChunks = await fileChunker(config, targetFiles);
         await startWorker(config, addonFiles, filterFiles, fileChunks, resumeHandle);
         resumeHandle.close();
-
         console2.log("[SCAN DONE]");
         console2.timeLog("STEPS");
         await aggregateReduce(config);
@@ -178,11 +177,10 @@ async function sortTweet(config) {
                 await async.each(
                     await fs.promises.readdir(targetDirAddonDay, { withFileTypes: true }),
                     async (direntt) => {
-                        if (!direntt.isFile() || !direntt.name.match(/\.tweet$/)) {
-                            return null;
+                        if (direntt.isFile() && direntt.name.match(/\.tweet$/)) {
+                            const targetFile = path.join(targetDirAddonDay, direntt.name)
+                            memo.push(targetFile);
                         }
-                        const targetFile = path.join(targetDirAddonDay, direntt.name)
-                        memo.push(targetFile);
                         return null;
                     }
                 );
@@ -190,7 +188,7 @@ async function sortTweet(config) {
         );
         return memo;
     });
-    await async.eachLimit(tweetFiles, config.nParallel, async (tweetFile) => {
+    await async.eachLimit(tweetFiles, config.nParallelDirScan, async (tweetFile) => {
         return new Promise((resolve, reject) => {
             const worker = new Worker("./workers/sort.mjs", {
                 "workerData": {
@@ -441,17 +439,17 @@ async function resume(config, all_files) {
         let doneFiles = {};
         for await (const line of readline.createInterface({ input: fs.createReadStream(config.resume) })) {
             const fields = line.split("\t");
-            doneFiles[fields[0]] = true;
+            doneFiles[fields[0].trim()] = true;
         }
         const targetFiles = await async.filter(all_files, async (file) => {
-            return !doneFiles.hasOwnProperty(file);
+            return !doneFiles.hasOwnProperty(path.basename(file, '.lz4'));
         });
-        const resumeHandle = await fs.promises.open(config.resume, "w+");
-        console2.log(files.length, "files remain");
+        const resumeHandle = await fs.promises.open(config.resume, "a+");
+        console2.log(targetFiles.length, "files remain");
         console2.groupEnd();
         return { targetFiles, resumeHandle };
     } catch (e) {
-        console2.log("[RESUME NO]", "Start new session");
+        console2.log("[RESUME NO]", "Start new session", e);
         await fs.promises.rm(config.output, { recursive: true, force: true });
         await fs.promises.mkdir(config.output);
         await fs.promises.writeFile(path.join(config.output, "_config.json"), JSON.stringify(config, null, "\t"));
