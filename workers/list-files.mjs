@@ -9,21 +9,11 @@ const console2 = new Console(process.stderr);
 const config = workerData.config;
 const isTargetFile = (fileName) => {
     const [year, month, day, hour, minute, no] = path.basename(fileName, '.lz4').split("-", 6);
-    const fileTime = DateTime.utc(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute));
+    //const fileTime = DateTime.utc(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute));
+    const fileTime = DateTime.local(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute));
     const fileHour = fileTime.hour;
-    const tFrom = DateTime.fromMillis(config.from);
+    const tFrom = DateTime.fromMillis(config.from).minus({ minutes: 15 });
     const tTo = DateTime.fromMillis(config.to).plus({ minutes: 15 });
-    /*
-    if (config.hourWindow.indexOf(fileHour) !== 0) {
-        console2.log("[[ OutOfWindow ]]", fileName);
-    }
-    if ((tFrom > fileTime) || (fileTime > tTo)) {
-        console2.log("<< OutOfTerm >>", fileName);
-    }
-    if ((config.hourWindow.indexOf(fileHour) !== -1) && (tFrom <= fileTime) && (fileTime <= tTo)) {
-        console2.log(config.hourWindow,">",fileHour,">>", fileName);
-    }
-    */
     return (config.hourWindow.indexOf(fileHour) !== -1) && (tFrom <= fileTime) && (fileTime <= tTo);
 }
 

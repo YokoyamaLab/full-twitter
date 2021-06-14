@@ -75,7 +75,7 @@ try {
                     const ts = DateTime.fromMillis(parseInt(tweet.timestamp_ms));
                     const tFrom = DateTime.fromMillis(config.from);
                     const tTo = DateTime.fromMillis(config.to);
-                    if (tFrom <= ts && ts < tTo) {
+                    if (tFrom <= ts && ts < tTo && config.hourWindow.indexOf(parseInt(ts.toFormat('H'))) !== -1) {
                         if (command.hasOwnProperty("filters") && command.filters != null) {
                             const filters = Array.isArray(command.filters) ? command.filters : [command.filters];
                             if (await async.detect(
@@ -123,7 +123,7 @@ try {
             type: "done",
             file: file,
             nTweet: nTweet,
-            nHit: nHit,
+            nHit: nHit, 
             tStart: tStart,
             tEnd: tEnd,
             threadId: threadId

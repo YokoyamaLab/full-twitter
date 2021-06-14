@@ -285,8 +285,11 @@ async function buildConfig(config_override) {
     }
     config.from = tFrom.toMillis();
     config.to = tTo.toMillis();
-    config.dayFrom = tFrom.setZone("utc").toISO();
-    config.dayTo = tTo.setZone("utc").toISO();
+    //config.dayFrom = tFrom.setZone("utc").toISO();
+    //config.dayTo = tTo.setZone("utc").toISO();
+    config.dayFrom = tFrom.setZone("Asia/Tokyo").toISO();
+    config.dayTo = tTo.setZone("Asia/Tokyo").toISO();
+    /*
     const tzOffset = Math.floor(DateTime.now().offset / 60);
     const tzHalfMin = DateTime.now().offset % 60 > 0;
     config.hourWindow.sort();
@@ -300,6 +303,7 @@ async function buildConfig(config_override) {
         hWindow.push(h);
         prevH = h;
     });
+   
     config.hourWindow = await async.map([...new Set(hWindow)],
         async (h) => {
             if (h < 0) {
@@ -309,6 +313,7 @@ async function buildConfig(config_override) {
             }
             return h;
         });
+     */
     config.hourWindow.sort();
     console2.table(await async.mapValuesSeries(config, async (val, key) => {
         return Array.isArray(val) ? JSON.stringify(val) : val;
