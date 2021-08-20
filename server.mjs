@@ -1,10 +1,12 @@
-const io = require('socket.io')();
+import { Server, Socket } from "socket.io";
+const io = new Server(14580);
+
 io.on('connection', client => {
-    client.on('event', data => {
+    console.log(client);
+    client.on('message', data => {
         console.log(data);
     });
     client.on('disconnect', () => {
         console.log("disconnect");
     });
 });
-io.listen(114580);
